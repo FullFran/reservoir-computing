@@ -1,0 +1,12 @@
+[project]
+name = "reservoir-computing"
+version = "0.1.0"
+description = "Minimal from-scratch Echo State Network in pure NumPy, with reproducible experiments on memory, criticality and capacity."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "pytest>=9.1.1",
+    "scipy>=1.18.1",
+]

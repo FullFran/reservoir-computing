@@ -447,3 +447,91 @@ is that its `bias = 0.0` column reproduces the published record: perturbation
 slopes -0.3605 / -0.1171 / -0.0268 and D_eff 9.28 / 1.35 match this file
 exactly. The MC/NARMA optima differ from the published 20-point sweep only as
 the coarser 12-point grid allows.
+
+## Exploratory topology discrimination: full grid versus order totals
+
+**The full grid classified these five ensembles better than its order totals in
+this eight-block exploration. This is not a bias-selection result.** Historical
+measurements and figures above are unchanged.
+
+Run `OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 MKL_NUM_THREADS=4 .venv/bin/python
+experiments/fig_topology_discrimination.py --pilot` for a forecast; omit `--pilot`
+for the experiment. The entry point caps these thread counts at four before
+scientific imports, preserving lower positive settings. It refuses to overwrite
+either new output. To reproduce, use a clean checkout without those generated
+outputs, or explicitly preserve/remove only those two new outputs first.
+
+### Matched protocol and ensemble definitions
+
+N=300, exactly **9,000 directed edges**, no self-loops, rho=.95, input scale=1,
+alpha=1, ridge lambda=1e-6, degree p<=3, maximum delay k<=6. Edge density is
+9000/(300*299), approximately .10033; degree 30 permits an exactly regular
+circulant rather than rounding a nominal .1 density differently by family.
+`W[target, source]` is the orientation convention.
+
+| Family | Definition |
+|---|---|
+| ER | Uniform fixed-edge-count graph, not independent Bernoulli edges |
+| Regular circulant | Each node connects to offsets +/-1 through +/-15; a degree-30 local lattice, **not a simple ring** |
+| Small-world | Rewire each circulant edge with probability .1; preserve source out-degree, prohibit loops and duplicate edges |
+| Heavy-tailed fitness | Independent incoming/outgoing Pareto(shape=2)+1 node propensities; sample edges without replacement weighted by their product; **no fitted scale-free degree-law claim** |
+| Modular | Four equal contiguous blocks; within/between edge-sampling propensity 8:1, fixed total edges |
+
+Eight independent seed blocks pair the input-weight vector, input trajectories,
+and pre-normalization Gaussian edge-weight multiset across all families and
+biases 0, .1, .3. Separate RNG streams handle graph, weights, input weights,
+fit input, and evaluation input. Each matrix is normalized to rho=.95:
+**final weight variance and strengths need not match**, so these are controlled
+ensemble comparisons, not pure topology effects at matched final weight statistics.
+
+Each trial uses **two independent T=6000 input trajectories**, each with 500
+washout rows, zero initial state and IID Uniform[-1,1] inputs. Fit on one,
+evaluate on the other. This differs from the historical single-trajectory
+50/50 split: totals are not directly comparable. Existing `fit_ridge`/`predict`
+support all 119 targets as matrix columns, avoiding repeated matrix solves;
+per-target held-out R² is clipped before aggregation. `capacity.py` is unchanged.
+
+Flatten `grid[1:, :]` to 21 features or sum its delay axis to three order totals.
+Both representations use exactly the same grids. Fixed nearest-centroid
+classification uses training-only feature means/scales and holds out all five
+families of one seed block. Each bias is evaluated separately; no tuning or bias
+selection is performed. Chance accuracy is 20% (five balanced classes).
+
+### Observed results and uncertainty
+
+| Bias | Order totals | Full grid | Paired gain | Descriptive 95% gain interval | Blocks better / tied / worse |
+|---|---|---|---|---|---|
+| 0 | 32.5% | 52.5% | +20.0 percentage points | +10.0 to +30.0 | 6 / 2 / 0 |
+| .1 | 35.0% | 52.5% | +17.5 percentage points | +2.5 to +30.0 | 6 / 1 / 1 |
+| .3 | 30.0% | 42.5% | +12.5 percentage points | -5.0 to +27.5 | 5 / 2 / 1 |
+
+Intervals resample the eight fixed out-of-fold block scores 2,000 times;
+they are descriptive, not independent-fold confidence guarantees, because
+training folds overlap. There are only 40 held-out predictions per bias.
+
+199 within-block label permutations refit centroids, using the same permutations
+for both representations and all biases. Max-statistic adjusted accuracy p-values
+across all six comparisons are .130/.070/.190 for order totals and
+.005/.005/.015 for the full grid (bias order 0/.1/.3). Adjusting the paired-gain
+statistic across three biases gives .015/.020/.100. These test the **no-label-
+association null**, not equality of model performance when a real signal exists;
+the gain p-values are not proof of general full-grid superiority. Permutation
+inference assumes labels are exchangeable within blocks under that null.
+No ANOVA over grid cells, independent-fold claim, or selected best bias is used.
+
+### Outputs, cost, and next step
+
+- `experiments/results/topology_discrimination.json`: all per-seed grids, trial
+  RNG seeds, normalization factors, configuration/definitions, versions, thread
+  counts, predictions, block scores, permutation scores and resource measurements.
+- `figures/fig_topology_discrimination.png`: mean accuracies and paired gains,
+  with individual held-out block scores rather than hidden dispersion.
+- Full experiment executed once: **40.69 s wall**, including **39.71 s measurement**;
+  **82.62 s user CPU + 2.81 s system CPU**, peak Linux VmHWM **140.57 MiB**,
+  four-thread caps. Matrix-target fitting makes this faster than the initial forecast.
+
+The result supports retaining delay structure in this finite-window instrument,
+but eight blocks and selected synthetic ensembles are not broad validation.
+Replicate the fixed protocol on fresh blocks, inspect per-family confusions,
+and then test sensitivity to final weight-statistic controls. Do not choose a
+bias by total capacity or treat this result as a resolved bias recommendation.

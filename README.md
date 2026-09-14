@@ -317,6 +317,11 @@ kind you can grade yourself against.
    implemented with an orthonormal polynomial basis and measured at the reference ρ
    values. Next, extend the ρ sweep using this finite-window spectrum instead of only
    its first row. This instrument check needs no connectome.
+   The first matched-topology comparison now finds higher held-out accuracy from the
+   full grid than from order totals at all tested biases, across eight exploratory
+   seed blocks (see the new subsection in `RESULTS.md`). Next, replicate the fixed
+   comparison on fresh blocks; this does not yet select a bias or isolate topology
+   from post-normalization weight statistics.
 2. **The 2×2 replication.** Topology (fly / random) × weights (fly / random), on the
    mushroom body rather than the whole brain, so it runs on a laptop. Question: does
    "weights matter more than topology" reproduce at this scale, under our protocol?

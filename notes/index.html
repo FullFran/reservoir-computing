@@ -325,6 +325,8 @@ window.MathJax = {
     <li><a href="#metricas">Las cuatro métricas que importan</a></li>
     <li><a href="#resultados">Resultados de tu reservoir</a></li>
     <li><a href="#techo">El techo de capacidad: IPC ≤ N</a></li>
+    <li><a href="#espectro">El espectro de capacidad C(k,p)</a></li>
+    <li><a href="#bias">El default que apagaba medio espectro</a></li>
     <li><a href="#lsm">Del ESN al cerebro: LSM y spikes</a></li>
     <li><a href="#mosca">La mosca: FlyWire y MaleCNS</a></li>
     <li><a href="#fisico">Reservoirs físicos</a></li>
@@ -610,11 +612,12 @@ window.MathJax = {
 <div class="note win">
   <span class="tag">Lo que contradice el folclore</span>
   <p>Los dos óptimos no coinciden y <strong>ninguno está en ρ=1</strong>: MC pica en ρ≈1.22, NARMA10 en ρ≈0.80. Y ρ=1.3 resultó ser <em>net-contractivo</em> bajo entrada, no caótico. La receta «pon ρ=0.99 porque edge of chaos» habría errado las dos veces. Ajusta ρ con validación, como cualquier otro hiperparámetro, y verifica la ESP midiendo perturbaciones en vez de suponerla.</p>
+  <p style="margin-top:.8rem"><b>Matiz que llegó después:</b> de estos dos hallazgos, el de ρ=1.3 contractivo <strong>sobrevive</strong> a cualquier bias, pero el de los óptimos en lados opuestos <strong>no</strong>: es en buena parte un artefacto de <code>bias=0</code>. Sección 10.</p>
 </div>
 
 <div class="note key">
   <span class="tag">Conecta con la sección 08</span>
-  <p>Un número que conviene tener presente: la MC máxima medida es <strong>≈16.7 sobre un techo teórico de N=300</strong>, y la dimensión efectiva nunca pasó de ~9. Tu reservoir está usando alrededor del <strong>5% de la capacidad que la cota IPC le permite</strong>.</p>
+  <p>Un número que se citaba aquí: la MC máxima medida es <strong>≈16.7 sobre un techo teórico de N=300</strong>, o sea un <strong>5%</strong> del techo. <b>Ese 5% estaba mal leído, y la sección 09 explica por qué:</b> MC cuenta solo la fila <em>lineal</em> del espectro, mientras que la cota suma <em>todos</em> los órdenes polinómicos. Midiendo el resto, dentro de la ventana \(p\le 4,\;k\le 8\) la fila lineal vale 8.8 y el total vale ≈102. El reservoir nunca estuvo usando el 5% de su techo: el instrumento miraba una fila y la comparaba contra la cota de todas.</p>
   <p>Eso es exactamente la franja punteada «capacidad no alcanzada» del diagrama de la sección siguiente. Y es la razón por la que el experimento Fly-vs-null sí puede dar diferencias medibles: no porque una topología supere el techo, sino porque unas se acercan más a él que otras.</p>
 </div>
 
@@ -689,7 +692,142 @@ window.MathJax = {
 <p>Este es el mismo compromiso que ves en la figura del barrido de ρ: la memoria lineal y la no linealidad <strong>compiten por el mismo presupuesto</strong>. No existe el «mejor reservoir»; existe el reservoir cuyo reparto encaja con tu tarea.</p>
 
 <!-- ============ 9 ============ -->
-<h2 id="lsm"><span class="sec-num">09</span>Del ESN al cerebro: liquid state machines</h2>
+<h2 id="espectro"><span class="sec-num">09</span>El espectro de capacidad: todas las filas, no una</h2>
+
+<p>La sección 08 te dio la cota: la capacidad total está acotada por el número de variables de estado linealmente independientes. Pero hay una trampa escondida en cómo la estábamos usando, y conviene verla antes de tocar ningún conectoma.</p>
+
+<p>MC mide <em>una sola cosa</em>: cuánta información lineal del pasado se puede recuperar. Dambre no acota la memoria lineal. Acota la suma sobre <strong>todas</strong> las funciones del historial de entrada que el estado hace accesibles: lineales, cuadráticas, cúbicas, productos cruzados entre retardos distintos. Comparar MC contra esa cota es comparar una fila contra el total de la tabla.</p>
+
+<div class="note warn">
+  <span class="tag">El error que estaba en estos apuntes</span>
+  <p>«MC ≈ 16.7 sobre N=300, o sea el 5% del techo» es exactamente esa confusión. No mide desperdicio: mide que solo habíamos abierto una fila del espectro. El 95% restante no estaba vacío, estaba <em>sin medir</em>.</p>
+</div>
+
+<p>Para medir el resto necesitas una <strong>base ortonormal</strong> de funciones del historial. Ortonormal no es un capricho estético: es lo que hace que las capacidades se puedan <em>sumar</em> y que la cota signifique algo. Si tus funciones base se solapan, estás contando la misma información dos veces.</p>
+
+<p>Con entrada \(u_t \sim \mathcal{U}(-1,1)\) la familia correcta son los <b>polinomios de Legendre</b>, que son ortogonales justo en ese intervalo con peso constante:</p>
+
+<div class="eq">
+  <span class="eq-label">Recurrencia de tres términos</span>
+  \[ P_0(u)=1,\qquad P_1(u)=u,\qquad (d+1)\,P_{d+1}(u)=(2d+1)\,u\,P_d(u)-d\,P_{d-1}(u) \]
+  <span class="eq-label" style="margin-top:1rem">Ortogonalidad y normalización</span>
+  \[ \mathbb{E}\!\left[P_a(u)P_b(u)\right]=\frac{\delta_{ab}}{2a+1} \quad\Longrightarrow\quad \tilde P_d(u)=\sqrt{2d+1}\,P_d(u) \]
+  <span class="eq-label" style="margin-top:1rem">Una función base: producto sobre retardos distintos</span>
+  \[ z_A[t]=\prod_i \tilde P_{d_i}\!\left(u_{t-k_i}\right), \qquad p=\sum_i d_i \]
+</div>
+
+<p>Como los \(u_t\) son independientes entre sí y cada factor con \(d\ge1\) tiene media cero y varianza uno, estos productos son ortonormales: \(\mathbb{E}[z_A z_B]=\delta_{AB}\). Esa es la propiedad que sostiene todo lo demás.</p>
+
+<p>Aquí <strong>estimamos la capacidad</strong> de una función base mediante el R² fuera de muestra de un readout ridge, recortado en cero. El espectro desglosa esas estimaciones por orden \(p\) y profundidad temporal \(k\):</p>
+
+<div class="eq">
+  <span class="eq-label">Capacidad de una función base &middot; IPC total</span>
+  \[ \widehat C_A=\max\!\left(R^2\!\left(z_A,\;W_{\rm out}^{\top}x\right),\,0\right), \qquad C_{\rm total}=\sum_A C_A \;\le\; \#\{\text{variables de estado independientes}\} \]
+</div>
+
+<p>La cota de la derecha corresponde a proyecciones poblacionales sobre una familia ortonormal, no a una garantía exacta para las estimaciones de muestra finita de la izquierda. El ajuste ridge y el recorte del R² pueden introducir diferencias; comprobar la cota en una ejecución es un control, no una demostración.</p>
+
+<div class="note key">
+  <span class="tag">¿Hace falta teoría de la información para esto? No</span>
+  <p>Se llama <em>information processing capacity</em>, así que la pregunta es razonable. Pero mira la maquinaria: una capacidad aquí es un \(R^2\) — varianza explicada por una proyección lineal — y la cota sale de un argumento de <strong>rango</strong>, no de entropía. No aparece Shannon por ningún sitio: ni entropía, ni información mutua, ni divergencias. Es geometría en un espacio de Hilbert con producto escalar \(\langle f,g\rangle=\mathbb{E}[fg]\), y la base ortonormal es lo que convierte «proyectar» en «sumar capacidades».</p>
+  <p>Lo que sí necesitas para todo lo que hay en estos apuntes es <strong>álgebra lineal de verdad</strong> (proyecciones, rango, bases ortonormales, mínimos cuadrados) y estadística de segundo orden. Nada más.</p>
+  <p><b>Dónde sí vas a necesitar Shannon:</b> en la pregunta de compresión del proyecto de engramas — «¿cuántos bits hacen falta para preservar el recuerdo?». Eso es literalmente <em>rate–distortion</em>: minimizar la tasa \(R\) sujeta a que la distorsión conductual se mantenga por debajo de un umbral. Un capítulo, cuando llegues ahí. No antes, y no el libro entero.</p>
+</div>
+
+<figure class="wide">
+  <img src="../figures/fig_capacity_spectrum.png" alt="Espectro de capacidad de procesamiento desglosado por orden polinómico y profundidad temporal">
+  <figcaption><b>Fig. 9 · El espectro completo</b>
+  Capacidad desglosada por orden polinómico \(p\) y, en el mapa de calor, también por profundidad temporal \(k\). N=300, T=6000, washout 500, 10 semillas, ventana \(p\le4\), \(k\le8\) (714 funciones base). Lo primero que salta: dentro de esa ventana la fila lineal vale <b>≈8.8</b> y el total vale <b>≈102</b>. La parte lineal es menos del 10% de lo que la misma ventana ya contiene. Lo segundo, y más raro: <strong>todos los órdenes pares salen exactamente cero</strong>. Eso es la sección 10.</figcaption>
+</figure>
+
+<div class="note warn">
+  <span class="tag">Regla: una capacidad sin suelo de ruido no es una medida</span>
+  <p>Hay 165 funciones base de orden 3 y solo 9 de orden 1. Si cada función acumulase un sesgo positivo pequeño por muestra finita, el total de orden 3 saldría enorme <em>sin significar nada</em>. Antes de creerte ningún número de estos, mide el suelo: reconstruye las funciones base con una entrada <strong>independiente</strong> que el reservoir nunca vio, y la capacidad debería desaparecer.</p>
+  <p>Medido aquí: total <b>99.18</b> con la entrada real, <b>exactamente 0.00</b> con la entrada sustituta, sobre las 714 funciones. Con 301 parámetros y ~2750 filas de test, ninguna estimación de R² fue positiva en este control. Esto respalda la señal de orden impar, pero no garantiza estimaciones sustitutas nulas en cualquier muestra finita.</p>
+</div>
+
+<!-- ============ 10 ============ -->
+<h2 id="bias"><span class="sec-num">10</span>El default que apagaba medio espectro</h2>
+
+<p>Al medir el espectro completo apareció algo que no encaja con «los números salen un poco bajos»: <strong>toda la capacidad de orden par salió cero</strong>. No pequeña. Cero, hasta la precisión de coma flotante, en las 45 funciones de orden 2 y en las 495 de orden 4.</p>
+
+<p>La simetría explica la capacidad poblacional nula. Los ceros exactos observados son estimaciones de R² recortadas: las correlaciones de muestra finita no tienen por qué anularse. La identidad de los estados sí puede demostrarse directamente.</p>
+
+<p>La ecuación de estado de estos apuntes, con el bias que <code>run_esn</code> trae por defecto a cero, es \(x_t=(1-\alpha)x_{t-1}+\alpha\tanh(Wx_{t-1}+W_{\rm in}u_t+b)\) con \(b=0\) y \(x_{-1}=0\). Pregunta qué pasa si le das la vuelta al signo de <em>toda</em> la secuencia de entrada:</p>
+
+<div class="eq">
+  <span class="eq-label">Inducción, con \(b=0\) y \(x_{-1}=0\)</span>
+  \[ x_{-1}=0=-x_{-1} \]
+  \[ W(-x_{t-1})+W_{\rm in}(-u_t)=-\left(Wx_{t-1}+W_{\rm in}u_t\right) \]
+  \[ \tanh(-z)=-\tanh(z) \quad\Longrightarrow\quad x_t(-u)=-x_t(u)\ \ \text{para todo } t \]
+</div>
+
+<p>O sea: el estado es un funcional <strong>exactamente impar</strong> del historial de entrada. Y una función base de grado \(p\) hace justo lo contrario, porque \(\tilde P_d(-u)=(-1)^d\tilde P_d(u)\):</p>
+
+<div class="eq">
+  <span class="eq-label">Por qué la capacidad poblacional par es cero</span>
+  \[ z_A(-u)=(-1)^{p}\,z_A(u) \]
+  \[ p\ \text{par}\;\Longrightarrow\; \mathbb{E}\!\left[z_A \cdot x\right]=0 \quad\text{bajo entrada simétrica} \]
+</div>
+
+<p>Bajo esta distribución simétrica, un predictor impar tiene covarianza poblacional nula con un objetivo par centrado; el término constante del readout no cambia esa covarianza. La identidad de los estados se comprobó directamente:</p>
+
+<div class="eq">
+  <span class="eq-label">Medido</span>
+  \[ \max_t\left|x_t(-u)+x_t(u)\right| = 0.000\times10^{0} \quad (b=0) \]
+  \[ \max_t\left|x_t(-u)+x_t(u)\right| = 1.712 \qquad\ \ \ (b=0.3) \]
+</div>
+
+<p>Rompe la simetría y la mitad que faltaba aparece:</p>
+
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>bias</th><th>\(p=1\)</th><th>\(p=2\)</th><th>\(p=3\)</th><th>total</th></tr></thead>
+  <tbody>
+    <tr><td><code>0.0</code></td><td>6.93</td><td><b>0.00</b></td><td>59.93</td><td>66.86</td></tr>
+    <tr><td><code>0.3</code></td><td>6.94</td><td><b>24.93</b></td><td>52.56</td><td>84.43</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><code>bias=0.0</code> es el valor por defecto de <code>run_esn</code>, y los scripts originales de figuras lo usaron sin pasar el argumento. La restricción de capacidad poblacional de orden par se aplica a las mediciones con entrada simétrica. <strong>NARMA10 es una excepción:</strong> su entrada es uniforme en [0, 0.5], por lo que el argumento de simetría no se aplica; sus cambios con el bias no demuestran una recuperación de capacidad par.</p>
+
+<figure class="wide">
+  <img src="../figures/fig_bias_sweep.png" alt="Sensibilidad al bias de los tres resultados principales">
+  <figcaption><b>Fig. 10 · Qué sobrevive al bias</b>
+  Los tres hallazgos de la sección 07, re-medidos a bias 0, 0.1, 0.3, 0.6 y 1.0 con las mismas 10 semillas. Uno sobrevive intacto, uno se rompe y uno casi desaparece.</figcaption>
+</figure>
+
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Hallazgo de la sección 07</th><th>Veredicto</th><th>Evidencia</th></tr></thead>
+  <tbody>
+    <tr><td>Óptimos de MC y NARMA en lados opuestos de ρ=1</td>
+        <td><b>Se rompe</b></td>
+        <td>El gap cae 0.436 → 0.218 → 0.109; a bias 0.6 ambos están <em>por encima</em> de 1</td></tr>
+    <tr><td>ρ=1.3 contrae, no es caótico</td>
+        <td><b>Sobrevive</b></td>
+        <td>Negativa a todo bias, y más negativa al subirlo: −0.027 → −0.156</td></tr>
+    <tr><td>D<sub>eff</sub> colapsa 9.28 → 1.35 con la escala de entrada</td>
+        <td><b>Casi desaparece</b></td>
+        <td>Ratio de colapso 6.89× → 1.16×: un bias grande ya es de por sí un drive saturante</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note warn">
+  <span class="tag">Ojo con la resolución</span>
+  <p>La rejilla de ρ del barrido tiene paso 0.109, y ρ=1.0 ni siquiera es un punto de la rejilla. Los gaps son múltiplos exactos de ese paso: el «0.109» final es <em>una celda</em>, no una prueba de separación nula. Con 10 semillas, a bias 0.6 las menores medias medidas están por encima de ρ=1. Las desviaciones estándar marginales no establecen equivalencia ni significación estadística; para eso hacen falta las diferencias emparejadas por semilla. Describe la región mínima observada, no un argmin continuo preciso.</p>
+</div>
+
+<div class="note key">
+  <span class="tag">La lección, que es más general que el bias</span>
+  <p>Compara este fallo con el off-by-one del índice de estados. Aquel hacía que una gráfica se viera mal, y acabó delatándose. <code>bias=0.0</code> no hacía que nada se viera mal: todas las figuras eran coherentes entre sí, todos los tests pasaban, y la red simplemente medía la mitad de lo que podía.</p>
+  <p>Un número equivocado acaba cantando. Un default que nunca elegiste solo estrecha en silencio lo que eres capaz de ver. Cuando montes el protocolo para el conectoma, <strong>fija el bias explícitamente antes de comparar nada</strong>: comparar la mosca contra sus null models a bias cero te dejaría ciego a cualquier diferencia que viva en los órdenes pares.</p>
+</div>
+
+<!-- ============ 11 ============ -->
+<h2 id="lsm"><span class="sec-num">11</span>Del ESN al cerebro: liquid state machines</h2>
 
 <p>Maass, Natschläger y Markram publicaron en 2002 la misma idea desde la neurociencia computacional, y sin saber de Jaeger. Su <em>liquid state machine</em> sustituye las unidades tanh por neuronas spiking realistas — integrate-and-fire con sinapsis dinámicas — y el reservoir por un microcircuito cortical.</p>
 
@@ -706,8 +844,8 @@ window.MathJax = {
   <p>Todo lo de las secciones 02–08 se transfiere: fading memory, washout, readout lineal, MC, la cota IPC ≤ N. Lo que cambia es la implementación del reservoir, no la teoría. Por eso tiene sentido dominar el ESN antes de tocar spikes.</p>
 </div>
 
-<!-- ============ 10 ============ -->
-<h2 id="mosca"><span class="sec-num">10</span>La mosca: qué te dan los datos y qué no</h2>
+<!-- ============ 12 ============ -->
+<h2 id="mosca"><span class="sec-num">12</span>La mosca: qué te dan los datos y qué no</h2>
 
 <div class="strip two">
   <figure class="photo">
@@ -787,8 +925,8 @@ window.MathJax = {
   <p>El proyecto de Alex Wormuth (septiembre 2026) conecta MaleCNS v1.0 — 166 700 neuronas, 25 582 938 conexiones dirigidas — a un arena de Doom, con refuerzo dopaminérgico experimental sobre células PPL101. Su candidato v6 <strong>falló</strong> las pruebas de validación visual, condicionamiento y supervivencia, y el proyecto lo dice abiertamente. Es una referencia excelente precisamente por eso: documenta sus decisiones de modelado y publica el resultado negativo. Léelo como estudio de ingeniería, no como demostración de que un cerebro simulado aprende.</p>
 </div>
 
-<!-- ============ 11 ============ -->
-<h2 id="fisico"><span class="sec-num">11</span>Reservoirs físicos: la generalización que buscabas</h2>
+<!-- ============ 13 ============ -->
+<h2 id="fisico"><span class="sec-num">13</span>Reservoirs físicos: la generalización que buscabas</h2>
 
 <div class="strip two tall">
   <figure class="photo">
@@ -832,10 +970,12 @@ window.MathJax = {
   <p>Jorge Hidalgo (Universidad de Córdoba) trabaja en física estadística, criticalidad en sistemas vivos y ecología teórica — <em>Information-based fitness and the emergence of criticality in living systems</em> (2014), <em>Neutral theory and scale-free neural dynamics</em> (2017). Es directamente relevante para la parte de criticalidad de estos apuntes, pero <strong>no tiene trabajo sobre procesadores ni sobre cómputo con cristales</strong>. Esa línea es probablemente del IFISC de Mallorca (Appeltant, Soriano, Mirasso, Fischer), que es justo quien firmó el resultado del nodo único con retardo y quien lleva la línea fotónica en España. Pendiente de confirmar.</p>
 </div>
 
-<!-- ============ 12 ============ -->
-<h2 id="semana1"><span class="sec-num">12</span>Tu semana 1, en concreto</h2>
+<!-- ============ 14 ============ -->
+<h2 id="semana1"><span class="sec-num">14</span>Tu semana 1, en concreto</h2>
 
 <p>El código ya está escrito y ejecutado; las figuras de la sección 07 salen de él. Lo que queda es que <em>tú</em> lo reconstruyas sin mirarlo. El objetivo de esta semana no es usar reservoir computing: es <strong>verlo aparecer</strong>.</p>
+
+<p style="font-family:var(--mono);font-size:.8rem;color:var(--muted)">SEMANA 1 &middot; el ESN y sus métricas</p>
 
 <ol class="check">
   <li><span class="d">DÍA 1</span><span>Deriva a mano la expansión \(\mathbf{x}_t = A^t\mathbf{x}_0 + \sum_k A^kB\,u_{t-1-k}\) y convéncete de que la memoria es una consecuencia de iterar una matriz. Sin código.</span></li>
@@ -847,15 +987,36 @@ window.MathJax = {
   <li><span class="d">DÍA 7</span><span>Repite todo con 20 semillas, añade barras de dispersión, escribe el README. Si no hay dispersión, no hay resultado.</span></li>
 </ol>
 
-<div class="note win">
-  <span class="tag">Criterio de éxito</span>
-  <p>Al final de la semana deberías poder responder, con una figura en la mano y sin citar a nadie: <em>¿por qué la memoria y la no linealidad compiten?</em> Si puedes, ya sabes reservoir computing. Lo demás es escalar.</p>
+
+<p style="font-family:var(--mono);font-size:.8rem;color:var(--muted);margin-top:2.2rem">SEMANA 2 &middot; el instrumento de medida</p>
+
+<p>La semana 1 te da un reservoir y cuatro métricas. La semana 2 te da lo que hace falta para medir un conectoma: el espectro completo, y la disciplina de no creerte tus propios números.</p>
+
+<ol class="check">
+  <li><span class="d">DÍA 1</span><span>Implementa \(\tilde P_d\) con la recurrencia de tres términos, a mano, sin <code>scipy.special</code>. Test: comprueba numéricamente que \(\mathbb{E}[\tilde P_a\tilde P_b]=\delta_{ab}\) sobre una muestra larga. Si no es ortonormal, nada de lo que sigue suma.</span></li>
+  <li><span class="d">DÍA 2</span><span>Funciones base como productos sobre retardos distintos, y <code>capacity_of</code> con partición train/test. <b>Test que ata lo nuevo a lo viejo:</b> la fila \(p=1\) debe reproducir tu <code>memory_capacity</code> de la semana 1. Si no coincide, uno de los dos está mal.</span></li>
+  <li><span class="d">DÍA 3</span><span><strong>El suelo de ruido, antes de mirar ningún resultado.</strong> Reconstruye las funciones base con una entrada independiente y comprueba que la capacidad se va a cero. Este día es el que separa una medida de un número.</span></li>
+  <li><span class="d">DÍA 4</span><span>Espectro completo \(C(k,p)\). Desglosa por orden. Mira cuánto de tu presupuesto no era lineal — y cuánto de la ventana que elegiste se te queda fuera.</span></li>
+  <li><span class="d">DÍA 5</span><span>Deriva a mano por qué \(x_t(-u)=-x_t(u)\) con \(b=0\), predice qué le pasa a los órdenes pares, y <em>luego</em> mídelo. Predicción antes que medición, siempre.</span></li>
+  <li><span class="d">DÍA 6</span><span>Barre el bias y re-mide tus tres conclusiones de la semana 1. Anota cuáles sobreviven.</span></li>
+  <li><span class="d">DÍA 7</span><span>Reescribe las conclusiones que no sobrevivieron. Este día es el importante: un cuaderno que solo acumula hallazgos y nunca retira ninguno no es un cuaderno de laboratorio.</span></li>
+</ol>
+
+<div class="note warn">
+  <span class="tag">El hábito que vale más que las dos semanas</span>
+  <p>Antes de ejecutar cada script, <strong>escribe el número que esperas</strong>. Luego ejecútalo. Donde falles, ahí está lo que no habías entendido — y es información que solo existe si te comprometiste antes de mirar.</p>
 </div>
 
-<!-- ============ 13 ============ -->
-<h2 id="biblio"><span class="sec-num">13</span>Bibliografía mínima</h2>
+<div class="note win">
+  <span class="tag">Criterio de éxito</span>
+  <p>Al final de la semana 1 deberías poder responder, con una figura en la mano y sin citar a nadie: <em>¿por qué la memoria y la no linealidad compiten?</em> Si puedes, ya sabes reservoir computing. Lo demás es escalar.</p>
+  <p style="margin-top:.8rem">Al final de la semana 2, una pregunta más dura: <em>¿cómo sé que esta capacidad que he medido es real y no ruido acumulado?</em> Si tienes respuesta, ya puedes medir un conectoma sin engañarte.</p>
+</div>
 
-<p>Seis papers, en este orden. No hay más que leer para empezar.</p>
+<!-- ============ 15 ============ -->
+<h2 id="biblio"><span class="sec-num">15</span>Bibliografía mínima</h2>
+
+<p>Seis papers, en este orden. No hay más que leer <em>para empezar</em> — y el orden importa más que la cantidad.</p>
 
 <ol class="refs">
   <li><span><b>Jaeger, H. (2001).</b> <em>The «echo state» approach to analysing and training recurrent neural networks.</em> GMD Report 148.
@@ -870,6 +1031,19 @@ window.MathJax = {
     <span class="why">El antídoto contra la religión del radio espectral.</span></span></li>
   <li><span><b>Appeltant, L. et al. (2011).</b> <em>Information processing using a single dynamical node as complex system.</em> Nature Communications 2, 468.
     <span class="why">Un nodo con retardo hace de reservoir. La puerta de entrada al hardware físico.</span></span></li>
+</ol>
+
+<p style="margin-top:2.4rem">Y estos cuatro, cuando pases del ESN al conectoma. Los tres primeros son trabajo ya publicado sobre exactamente esto: te dan resultados con respuesta conocida contra los que comprobarte, que es la mejor situación posible para aprender.</p>
+
+<ol class="refs" start="7">
+  <li><span><b>Suárez, L. E. et al. (2024).</b> <em>Connectome-based reservoir computing with the conn2res toolbox.</em> Nature Communications 15, 656.
+    <span class="why">La plantilla metodológica. Lo que hay que robarle es la insistencia en separar <b>arquitectura</b> de <b>dinámica</b>: las capacidades que midas dependen de las dos, y solo una es la mosca.</span></span></li>
+  <li><span><b>Costi, L., Hadjiivanov, A., Dold, D., Hale, Z. F. &amp; Izzo, D. (2025).</b> <em>The Drosophila connectome as a computational reservoir for time-series prediction.</em> Biomimetics 10(5).
+    <span class="why">FlyWire (~104.909 neuronas) como ESN, del Advanced Concepts Team de la ESA. Encontraron más resistencia al overfitting que un ESN estándar, y que <b>los pesos aportan más que la topología</b> — dato que reordena tu escalera de null models. Sus controles paran en topología/pesos aleatorios: ahí queda hueco.</span></span></li>
+  <li><span><b>Mijalkov, M., Storm, L., Zufiria-Gerbolés, B. et al. (2025).</b> <em>Computational memory capacity predicts aging and cognitive decline.</em> Nature Communications 16, 2748.
+    <span class="why">Conectomas humanos como reservoirs, n=636 con réplica. La MC de una estructura anatómica correlaciona con edad, sustancia blanca y cognición. Ojo: miden solo la fila <b>lineal</b>. El espectro de la sección 09 sigue sin explorar también en humanos.</span></span></li>
+  <li><span><b>Cover, T. M. &amp; Thomas, J. A.</b> <em>Elements of Information Theory</em>, capítulo 10 (<em>rate–distortion</em>).
+    <span class="why"><b>Solo cuando llegues a la pregunta de compresión del proyecto de engramas</b> — cuántos bits necesita un recuerdo para seguir siendo ese recuerdo. Un capítulo, no el libro. Nada de lo que hay en estos apuntes lo necesita: ver la nota de la sección 09.</span></span></li>
 </ol>
 
 <hr class="rule" style="margin-top:3.5rem">
